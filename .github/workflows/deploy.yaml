@@ -1,0 +1,81 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      registry:
+        required: true
+        type: string
+      repository:
+        required: true
+        type: string
+      cluster:
+        required: true
+        type: string
+      namespace:
+        required: true
+        type: string
+      krane-dir:
+        required: true
+        type: string
+      version:
+        required: false
+        type: string
+      aws-region:
+        required: false
+        type: string
+        default: us-east-1
+      kubectl-version:
+        required: false
+        type: string
+        default: v1.22.9
+    secrets:
+      aws-access-key-id:
+        required: true
+      aws-secret-access-key:
+        required: true
+
+jobs:
+  to-kubernetes:
+    runs-on: ubuntu-latest
+    container:
+      image: ruby:3.1-alpine
+    steps:
+      - uses: actions/checkout@v3.1.0
+
+      - name: Install AWS CLI
+        run: apk add aws-cli
+
+      - name: Configure AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          aws-access-key-id: ${{ secrets.aws-access-key-id }}
+          aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+          aws-region: ${{ inputs.aws-region }}
+        
+      - name: Install kubectl
+        uses: Azure/setup-kubectl@v3
+        with:
+          version: ${{ inputs.kubectl-version }}
+
+      - name: Configure kubectl
+        run: aws eks update-kubeconfig --name ${{ inputs.cluster }} --alias ${{ inputs.cluster }}
+
+      - name: Install dependencies for Krane
+        run: apk add build-base
+
+      - name: Install Krane
+        run: gem install krane
+
+      - name: Extract Docker metadata
+        if: inputs.version != ''
+        id: meta
+        uses: docker/metadata-action@v4.1.1
+        with:
+          images: ${{ inputs.registry }}/${{ inputs.repository }}
+          tags: type=sha
+
+      - name: Deploy
+        run: |
+          krane render --filenames ${{ inputs.krane-dir }} --bindings=version=${{ inputs.version || steps.meta.outputs.version }} |
+          krane deploy ${{ inputs.namespace }} ${{ inputs.cluster }} -f -
