@@ -68,7 +68,7 @@ jobs:
         run: gem install krane
 
       - name: Extract Docker metadata
-        if: inputs.version != ''
+        if: inputs.version == ''
         id: meta
         uses: docker/metadata-action@v4.1.1
         with:
