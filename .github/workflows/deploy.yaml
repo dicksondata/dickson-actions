@@ -28,7 +28,7 @@ on:
       kubectl-version:
         required: false
         type: string
-        default: v1.29.3
+        default: v1.30.5
     secrets:
       aws-access-key-id:
         required: true
