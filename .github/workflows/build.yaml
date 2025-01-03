@@ -9,6 +9,10 @@ on:
       repository:
         required: true
         type: string
+      push:
+        required: false
+        type: boolean
+        default: true
     secrets:
       username:
         required: true
@@ -40,7 +44,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v3.2.0
         with:
-          push: true
+          push: ${{ inputs.push }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           secrets: ${{ secrets.build-secrets }}
