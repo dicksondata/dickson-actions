@@ -36,7 +36,31 @@ on:
         required: true
 
 jobs:
-  to-kubernetes:
+  approval:
+    if: contains(inputs.cluster, 'prod') || contains(inputs.cluster, 'staging')
+    runs-on: ubuntu-latest
+    timeout-minutes: 1440  # 24 hours timeout
+    steps:
+      - name: Pending approval
+        id: approval
+        uses: trstringer/manual-approval@v1
+        timeout-minutes: 1440
+        with:
+          secret: ${{ github.token }}
+          approvers: "@dicksondata/Admins"
+          minimum-approvals: 1
+          issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
+          issue-body: |
+            A new deployment to ${{ inputs.cluster }} environment requires your approval.
+
+            If no approval is given within 24 hours, the workflow will timeout and need to be re-run.
+
+            Please review and approve or reject this deployment.
+          exclude-workflow-initiator-as-approver: true
+
+  deploy:
+    needs: [approval]
+    if: always() && (needs.approval.result == 'success' || needs.approval.result == 'skipped')
     runs-on: ubuntu-latest
     container:
       image: ruby:3.1-alpine3.19
