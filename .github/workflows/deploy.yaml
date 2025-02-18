@@ -47,7 +47,7 @@ jobs:
         timeout-minutes: 1440
         with:
           secret: ${{ github.token }}
-          approvers: "@dicksondata/Admins"
+          approvers: thierryquemerais,nitramwilliam,jbatmalle2,vcelhaiguibel,Yohan-Di-Michiel
           minimum-approvals: 1
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
           issue-body: |
