@@ -50,7 +50,7 @@ jobs:
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ secrets.GITHUB_TOKEN }}
-          approvers: Yohan-Di-Michiel
+          approvers: thierryquemerais,nitramwilliam,jbatmalle2,vcelhaiguibel,Yohan-Di-Michiel
           minimum-approvals: 1
           timeout-minutes: 1440 # 24 hours timeout
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
