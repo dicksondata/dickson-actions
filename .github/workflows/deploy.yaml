@@ -43,16 +43,16 @@ jobs:
   approval:
     if: inputs.approval
     runs-on: ubuntu-latest
-    timeout-minutes: 1440  # 24 hours timeout
+    timeout-minutes: 1440 # 24 hours timeout
     steps:
       - name: Pending approval
         id: approval
         uses: trstringer/manual-approval@v1
-        timeout-minutes: 1440
         with:
           secret: ${{ github.token }}
-          approvers: thierryquemerais,nitramwilliam,jbatmalle2,vcelhaiguibel,Yohan-Di-Michiel
+          approvers: Yohan-Di-Michiel
           minimum-approvals: 1
+          timeout-minutes: 1440 # 24 hours timeout
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
           issue-body: |
             A new deployment to ${{ inputs.cluster }} environment requires your approval.
