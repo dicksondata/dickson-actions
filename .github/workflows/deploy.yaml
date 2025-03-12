@@ -60,7 +60,7 @@ jobs:
             If no approval is given within 24 hours, the workflow will timeout and need to be re-run.
 
             Please review and approve or reject this deployment.
-          exclude-workflow-initiator-as-approver: true
+          exclude-workflow-initiator-as-approver: false
 
   deploy:
     needs: [approval]
