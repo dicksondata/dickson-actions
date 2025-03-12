@@ -40,7 +40,7 @@ on:
         required: true
 
 permissions:
-  orgs: read
+  members: read
 
 jobs:
   approval:
