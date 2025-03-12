@@ -39,9 +39,6 @@ on:
       aws-secret-access-key:
         required: true
 
-permissions:
-  members: read
-
 jobs:
   approval:
     if: inputs.approval
@@ -54,7 +51,7 @@ jobs:
         timeout-minutes: 1440
         with:
           secret: ${{ github.token }}
-          approvers: Admins
+          approvers: dicksondata/Admins
           minimum-approvals: 1
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
           issue-body: |
