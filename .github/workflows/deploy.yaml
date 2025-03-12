@@ -49,7 +49,7 @@ jobs:
         id: approval
         uses: trstringer/manual-approval@v1
         with:
-          secret: ${{ github.token }}
+          secret: ${{ secrets.GITHUB_TOKEN }}
           approvers: Yohan-Di-Michiel
           minimum-approvals: 1
           timeout-minutes: 1440 # 24 hours timeout
