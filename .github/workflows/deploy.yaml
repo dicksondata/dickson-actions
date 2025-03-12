@@ -29,6 +29,10 @@ on:
         required: false
         type: string
         default: v1.30.5
+      approval:
+        required: false
+        type: boolean
+        default: false
     secrets:
       aws-access-key-id:
         required: true
@@ -37,7 +41,7 @@ on:
 
 jobs:
   approval:
-    if: contains(inputs.cluster, 'prod') || contains(inputs.cluster, 'staging')
+    if: inputs.approval
     runs-on: ubuntu-latest
     timeout-minutes: 1440  # 24 hours timeout
     steps:
@@ -47,7 +51,7 @@ jobs:
         timeout-minutes: 1440
         with:
           secret: ${{ github.token }}
-          approvers: thierryquemerais,nitramwilliam,jbatmalle2,vcelhaiguibel,Yohan-Di-Michiel
+          approvers: Admins
           minimum-approvals: 1
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
           issue-body: |
