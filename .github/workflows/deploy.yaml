@@ -39,6 +39,9 @@ on:
       aws-secret-access-key:
         required: true
 
+permissions:
+  organization: read
+
 jobs:
   approval:
     if: inputs.approval
