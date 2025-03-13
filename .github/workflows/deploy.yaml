@@ -77,6 +77,8 @@ jobs:
     needs: [approval]
     if: always() && (needs.approval.result == 'success' || needs.approval.result == 'skipped')
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     container:
       image: ruby:3.1-alpine3.19
     steps:
