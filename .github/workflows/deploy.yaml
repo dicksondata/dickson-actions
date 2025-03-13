@@ -33,6 +33,14 @@ on:
         required: false
         type: boolean
         default: false
+      approval_app_id:
+        required: false
+        type: string
+        default: null
+      approval_private_key:
+        required: false
+        type: string
+        default: null
     secrets:
       aws-access-key-id:
         required: true
@@ -46,16 +54,23 @@ jobs:
   approval:
     if: inputs.approval
     runs-on: ubuntu-latest
-    timeout-minutes: 1440 # 24 hours timeout
+    timeout-minutes: 60 # 1 hour timeout
     steps:
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@v1
+        with:
+          app_id: ${{ inputs.approval_app_id }}
+          private_key: ${{ inputs.approval_private_key }}
+
       - name: Pending approval
         id: approval
         uses: trstringer/manual-approval@v1
         with:
-          secret: ${{ secrets.GITHUB_TOKEN }}
-          approvers: Yohan-Di-Michiel
+          secret: ${{ steps.generate_token.outputs.token }}
+          approvers: Admins
           minimum-approvals: 1
-          timeout-minutes: 1440 # 24 hours timeout
+          timeout-minutes: 60 # 1 hour timeout
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
           issue-body: |
             A new deployment to ${{ inputs.cluster }} environment requires your approval.
