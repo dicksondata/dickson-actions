@@ -50,7 +50,7 @@ jobs:
   approval:
     if: inputs.approval
     runs-on: ubuntu-latest
-    timeout-minutes: 60 # 1 hour timeout
+    timeout-minutes: 60 # Can't be more, because generated token expire after this time.
     steps:
       - name: Generate token
         id: generate_token
@@ -66,12 +66,12 @@ jobs:
           secret: ${{ steps.generate_token.outputs.token }}
           approvers: Admins
           minimum-approvals: 1
-          timeout-minutes: 60 # 1 hour timeout
+          timeout-minutes: 60 # Can't be more, because generated token expire after this time.
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
           issue-body: |
             A new deployment to ${{ inputs.cluster }} environment requires your approval.
 
-            If no approval is given within 24 hours, the workflow will timeout and need to be re-run.
+            If no approval is given within 60 minutes, the workflow will timeout and need to be re-run.
 
             Please review and approve or reject this deployment.
           exclude-workflow-initiator-as-approver: false
