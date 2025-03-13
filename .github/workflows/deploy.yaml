@@ -29,39 +29,56 @@ on:
         required: false
         type: string
         default: v1.30.5
+      approval:
+        required: false
+        type: boolean
+        default: false
     secrets:
       aws-access-key-id:
         required: true
       aws-secret-access-key:
         required: true
+      approval-app-id:
+        required: false
+      approval-private-key:
+        required: false
 
 jobs:
   approval:
-    if: contains(inputs.cluster, 'prod') || contains(inputs.cluster, 'staging')
+    if: inputs.approval
     runs-on: ubuntu-latest
-    timeout-minutes: 1440  # 24 hours timeout
+    timeout-minutes: 60 # Can't be more, because generated token expire after this time.
     steps:
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@v1
+        with:
+          app_id: ${{ secrets.approval-app-id }}
+          private_key: ${{ secrets.approval-private-key }}
+
       - name: Pending approval
         id: approval
         uses: trstringer/manual-approval@v1
-        timeout-minutes: 1440
         with:
-          secret: ${{ github.token }}
-          approvers: thierryquemerais,nitramwilliam,jbatmalle2,vcelhaiguibel,Yohan-Di-Michiel
+          secret: ${{ steps.generate_token.outputs.token }}
+          approvers: Admins
           minimum-approvals: 1
+          timeout-minutes: 60 # Can't be more, because generated token expire after this time.
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
           issue-body: |
             A new deployment to ${{ inputs.cluster }} environment requires your approval.
 
-            If no approval is given within 24 hours, the workflow will timeout and need to be re-run.
+            If no approval is given within 60 minutes, the workflow will timeout and need to be re-run.
 
             Please review and approve or reject this deployment.
-          exclude-workflow-initiator-as-approver: true
+          exclude-workflow-initiator-as-approver: false
 
   deploy:
     needs: [approval]
     if: always() && (needs.approval.result == 'success' || needs.approval.result == 'skipped')
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     container:
       image: ruby:3.1-alpine3.19
     steps:
