@@ -33,19 +33,15 @@ on:
         required: false
         type: boolean
         default: false
-      approval_app_id:
-        required: false
-        type: string
-        default: null
-      approval_private_key:
-        required: false
-        type: string
-        default: null
     secrets:
       aws-access-key-id:
         required: true
       aws-secret-access-key:
         required: true
+      approval-app-id:
+        required: false
+      approval-private-key:
+        required: false
 
 permissions:
   issues: write
@@ -60,8 +56,8 @@ jobs:
         id: generate_token
         uses: tibdex/github-app-token@v1
         with:
-          app_id: ${{ inputs.approval_app_id }}
-          private_key: ${{ inputs.approval_private_key }}
+          app_id: ${{ secrets.approval-app-id }}
+          private_key: ${{ secrets.approval-private-key }}
 
       - name: Pending approval
         id: approval
