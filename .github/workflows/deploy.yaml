@@ -43,9 +43,6 @@ on:
       approval-private-key:
         required: false
 
-permissions:
-  issues: write
-
 jobs:
   approval:
     if: inputs.approval
