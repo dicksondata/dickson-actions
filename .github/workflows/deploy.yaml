@@ -45,7 +45,7 @@ on:
         required: false
         type: number
         default: 1
-      approval-initiator:
+      approval-exclude-initiator:
         required: false
         type: boolean
         default: true
@@ -87,7 +87,7 @@ jobs:
             If no approval is given within ${{ inputs.approval-timeout }} minutes, the workflow will timeout and need to be re-run.
 
             Please review and approve or reject this deployment.
-          exclude-workflow-initiator-as-approver: ${{ inputs.approval-initiator }}
+          exclude-workflow-initiator-as-approver: ${{ inputs.approval-exclude-initiator }}
 
   deploy:
     needs: [approval]
