@@ -33,6 +33,22 @@ on:
         required: false
         type: boolean
         default: false
+      approval-timeout:
+        required: false
+        type: number
+        default: 60
+      approvers:
+        required: false
+        type: string
+        default: Admins
+      minimum-approvals:
+        required: false
+        type: number
+        default: 1
+      approval-initiator:
+        required: false
+        type: boolean
+        default: true
     secrets:
       aws-access-key-id:
         required: true
@@ -61,17 +77,17 @@ jobs:
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ steps.generate_token.outputs.token }}
-          approvers: Admins
-          minimum-approvals: 1
-          timeout-minutes: 60 # Can't be more, because generated token expire after this time.
+          approvers: ${{ inputs.approvers }}
+          minimum-approvals: ${{ fromJSON(inputs.minimum-approvals) }}
+          timeout-minutes: ${{ fromJSON(inputs.approval-timeout) }} # Can't be more than 60 minutes, because generated token expire after this time.
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
           issue-body: |
             A new deployment to ${{ inputs.cluster }} environment requires your approval.
 
-            If no approval is given within 60 minutes, the workflow will timeout and need to be re-run.
+            If no approval is given within ${{ inputs.approval-timeout }} minutes, the workflow will timeout and need to be re-run.
 
             Please review and approve or reject this deployment.
-          exclude-workflow-initiator-as-approver: false
+          exclude-workflow-initiator-as-approver: ${{ inputs.approval-initiator }}
 
   deploy:
     needs: [approval]
