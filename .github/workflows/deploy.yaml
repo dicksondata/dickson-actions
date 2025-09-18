@@ -3,60 +3,85 @@ name: Deploy
 on:
   workflow_call:
     inputs:
+      # --- Container image inputs ---
       registry:
-        required: true
+        description: "ECR registry URL"
+        required: false
         type: string
       repository:
-        required: true
+        description: "ECR repository name"
+        required: false
         type: string
+      version:
+        description: "Image version/tag to deploy"
+        required: false
+        type: string
+      # --- Kubernetes deployment inputs ---
       cluster:
+        description: "Target EKS cluster name"
         required: true
         type: string
       namespace:
+        description: "Target Kubernetes namespace"
         required: true
         type: string
       krane-dir:
-        required: true
-        type: string
-      version:
+        description: "Directory containing Krane templates"
         required: false
         type: string
+      config-files:
+        description: "Additional configuration files to include (space-separated)"
+        required: false
+        type: string
+      # --- Infrastructure inputs ---
       aws-region:
+        description: "AWS region for the EKS cluster"
         required: false
         type: string
         default: us-east-1
       kubectl-version:
+        description: "Version of kubectl to install"
         required: false
         type: string
         default: v1.30.5
+      # --- Manual approval inputs ---
       approval:
+        description: "Enable manual approval before deployment"
         required: false
         type: boolean
         default: false
       approval-timeout:
+        description: "Approval timeout in minutes"
         required: false
         type: number
         default: 60
       approvers:
+        description: "GitHub users or teams who can approve"
         required: false
         type: string
         default: Admins
       minimum-approvals:
+        description: "Minimum number of approvals required"
         required: false
         type: number
         default: 1
       approval-exclude-initiator:
+        description: "Exclude workflow initiator from approvers"
         required: false
         type: boolean
         default: true
     secrets:
       aws-access-key-id:
+        description: "AWS Access Key ID"
         required: true
       aws-secret-access-key:
+        description: "AWS Secret Access Key"
         required: true
       approval-app-id:
+        description: "GitHub App ID for approval workflow"
         required: false
       approval-private-key:
+        description: "GitHub App private key for approval workflow"
         required: false
 
 jobs:
@@ -65,14 +90,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ fromJSON(inputs.approval-timeout) }} # Can't be more, because generated token expire after this time.
     steps:
-      - name: Generate token
+      - name: Generate GitHub App token
         id: generate_token
         uses: tibdex/github-app-token@v1
         with:
           app_id: ${{ secrets.approval-app-id }}
           private_key: ${{ secrets.approval-private-key }}
 
-      - name: Pending approval
+      - name: Wait for manual approval
         id: approval
         uses: trstringer/manual-approval@v1
         with:
@@ -82,7 +107,11 @@ jobs:
           timeout-minutes: ${{ fromJSON(inputs.approval-timeout) }} # Can't be more than 60 minutes, because generated token expire after this time.
           issue-title: "Deployment Approval Required - ${{ inputs.cluster }}"
           issue-body: |
-            A new deployment to ${{ inputs.cluster }} environment requires your approval.
+            A new deployment requires your approval.
+
+            **Cluster:** ${{ inputs.cluster }}
+            **Namespace:** ${{ inputs.namespace }}
+            **Region:** ${{ inputs.aws-region }}
 
             If no approval is given within ${{ inputs.approval-timeout }} minutes, the workflow will timeout and need to be re-run.
 
@@ -98,32 +127,33 @@ jobs:
     container:
       image: ruby:3.1-alpine3.19
     steps:
-      - uses: actions/checkout@v3.1.0
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install AWS CLI
-        run: apk add aws-cli
+      - name: Download workflow artifacts
+        uses: actions/download-artifact@v4
 
-      - name: Configure AWS CLI
-        uses: aws-actions/configure-aws-credentials@v1.7.0
+      - name: Install system dependencies
+        run: apk add --no-cache aws-cli build-base
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.aws-access-key-id }}
           aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
           aws-region: ${{ inputs.aws-region }}
-        
+
       - name: Install kubectl
         uses: Azure/setup-kubectl@v3
         with:
           version: ${{ inputs.kubectl-version }}
-
-      - name: Configure kubectl
+          
+      - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ inputs.cluster }} --alias ${{ inputs.cluster }}
-
-      - name: Install dependencies for Krane
-        run: apk add build-base
 
       - name: Install Krane
         run: gem install krane
-
+      
       - name: Extract Docker metadata
         if: inputs.version == ''
         id: meta
@@ -132,7 +162,23 @@ jobs:
           images: ${{ inputs.registry }}/${{ inputs.repository }}
           tags: type=sha
 
-      - name: Deploy
+      - name: Deploy to Kubernetes
         run: |
-          krane render --filenames ${{ inputs.krane-dir }} --bindings=version=${{ inputs.version || steps.meta.outputs.version }} |
-          krane deploy ${{ inputs.namespace }} ${{ inputs.cluster }} -f -
+          echo "Starting Kubernetes deployment..."
+
+          VERSION="${{ inputs.version || steps.meta.outputs.version }}"
+          echo "Using image version: $VERSION"
+
+          CONFIG_ARGS=""
+          if [ -n "${{ inputs.config-files }}" ]; then
+            echo "Adding configuration files: ${{ inputs.config-files }}"
+            for config_file in ${{ inputs.config-files }}; do
+              CONFIG_ARGS="$CONFIG_ARGS -f $config_file"
+            done
+          fi
+
+          echo "Rendering templates from: ${{ inputs.krane-dir }}"
+          bundle exec krane render --filenames ${{ inputs.krane-dir }} --bindings=version=$VERSION | \
+          bundle exec krane deploy ${{ inputs.namespace }} ${{ inputs.cluster }} -f - $CONFIG_ARGS
+          
+          echo "Deployment completed successfully"
