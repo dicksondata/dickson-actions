@@ -1,0 +1,42 @@
+name: Decrypt Sops File
+
+on:
+  workflow_call:
+    inputs:
+      sops_file_path:
+        required: true
+        type: string
+      output_file_name:
+        required: false
+        type: string
+        default: "decrypted-secrets.yaml"
+    outputs:
+      decrypted_file:
+        description: "The name of the decrypted output file."
+        value: ${{ jobs.decrypt.outputs.output_file }}
+
+jobs:
+  decrypt:
+    runs-on: ubuntu-latest
+    outputs:
+      output_file: ${{ steps.sops.outputs.output_file }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decrypt Sops file
+        id: sops
+        run: |
+          apk add --no-cache sops
+          if [ -f "${{ inputs.sops_file_path }}" ]; then
+            sops -d "${{ inputs.sops_file_path }}" > "${{ inputs.output_file_name }}"
+            echo "File decrypted to ${{ inputs.output_file_name }}"
+            echo "output_file=${{ inputs.output_file_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "Sops file not found, creating an empty file."
+            touch "${{ inputs.output_file_name }}"
+            echo "output_file=${{ inputs.output_file_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.output_file_name }}
+          path: ${{ inputs.output_file_name }}
