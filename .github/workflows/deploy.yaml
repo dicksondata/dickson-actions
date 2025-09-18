@@ -30,7 +30,7 @@ on:
         required: false
         type: string
       config-files:
-        description: "Additional configuration files to include (space-separated)"
+        description: "Configuration files to include in deployment (space-separated)"
         required: false
         type: string
       # --- Infrastructure inputs ---
@@ -88,7 +88,7 @@ jobs:
   approval:
     if: inputs.approval
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ fromJSON(inputs.approval-timeout) }} # Can't be more, because generated token expire after this time.
+    timeout-minutes: ${{ fromJSON(inputs.approval-timeout) }} # Can't be more than 60 minutes, because generated token expire after this time.
     steps:
       - name: Generate GitHub App token
         id: generate_token
@@ -169,6 +169,12 @@ jobs:
           VERSION="${{ inputs.version || steps.meta.outputs.version }}"
           echo "Using image version: $VERSION"
 
+          if [ -n "${{ inputs.namespace }}" ]; then
+            echo "Ensuring namespace '${{ inputs.namespace }}' exists..."
+            kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+            echo "Namespace '${{ inputs.namespace }}' ready"
+          fi
+
           CONFIG_ARGS=""
           if [ -n "${{ inputs.config-files }}" ]; then
             echo "Adding configuration files: ${{ inputs.config-files }}"
@@ -177,7 +183,6 @@ jobs:
             done
           fi
 
-          echo "Rendering templates from: ${{ inputs.krane-dir }}"
           bundle exec krane render --filenames ${{ inputs.krane-dir }} --bindings=version=$VERSION | \
           bundle exec krane deploy ${{ inputs.namespace }} ${{ inputs.cluster }} -f - $CONFIG_ARGS
           
