@@ -183,7 +183,7 @@ jobs:
           for config_file in ${{ inputs.config-files }}; do
             if [ -f "$config_file" ]; then
               echo "Adding static config file binding: $config_file"
-              BINDINGS_ARGS="$BINDINGS_ARGS '@$config_file'"
+              BINDINGS_ARGS="$BINDINGS_ARGS @$config_file"
             else
               echo "Warning: Static config file not found: $config_file"
             fi
@@ -194,7 +194,7 @@ jobs:
           if ls *.decrypted.yaml >/dev/null 2>&1; then
             for decrypted_file in *.decrypted.yaml; do
               echo "Adding decrypted file binding: $decrypted_file"
-              BINDINGS_ARGS="$BINDINGS_ARGS '@$decrypted_file'"
+              BINDINGS_ARGS="$BINDINGS_ARGS @$decrypted_file"
             done
           else
             echo "No decrypted files found"
