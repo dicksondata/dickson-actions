@@ -132,6 +132,10 @@ jobs:
 
       - name: Download workflow artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: decrypted-secrets
+          path: .
 
       - name: Install system dependencies
         run: apk add --no-cache aws-cli build-base
@@ -166,24 +170,45 @@ jobs:
         run: |
           echo "Starting Kubernetes deployment..."
 
-          VERSION="${{ inputs.version || steps.meta.outputs.version }}"
-          echo "Using image version: $VERSION"
-
           if [ -n "${{ inputs.namespace }}" ]; then
             echo "Ensuring namespace '${{ inputs.namespace }}' exists..."
             kubectl create namespace ${{ inputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
             echo "Namespace '${{ inputs.namespace }}' ready"
           fi
 
-          CONFIG_ARGS=""
-          if [ -n "${{ inputs.config-files }}" ]; then
-            echo "Adding configuration files: ${{ inputs.config-files }}"
-            for config_file in ${{ inputs.config-files }}; do
-              CONFIG_ARGS="$CONFIG_ARGS -f $config_file"
+          # Build bindings arguments from config files
+          BINDINGS_ARGS=""
+          
+          # Add static config files first
+          for config_file in ${{ inputs.config-files }}; do
+            if [ -f "$config_file" ]; then
+              echo "Adding static config file binding: $config_file"
+              BINDINGS_ARGS="$BINDINGS_ARGS '@$config_file'"
+            else
+              echo "Warning: Static config file not found: $config_file"
+            fi
+          done
+
+          # Auto-detect and add all decrypted files from artifacts
+          echo "Searching for decrypted files..."
+          if ls *.decrypted.yaml >/dev/null 2>&1; then
+            for decrypted_file in *.decrypted.yaml; do
+              echo "Adding decrypted file binding: $decrypted_file"
+              BINDINGS_ARGS="$BINDINGS_ARGS '@$decrypted_file'"
             done
+          else
+            echo "No decrypted files found"
           fi
 
-          bundle exec krane render --filenames ${{ inputs.krane-dir }} --bindings=version=$VERSION | \
-          bundle exec krane deploy ${{ inputs.namespace }} ${{ inputs.cluster }} -f - $CONFIG_ARGS
+          # Add version binding
+          VERSION="${{ inputs.version || steps.meta.outputs.version }}"
+          echo "Using image version: $VERSION"
+          BINDINGS_ARGS="$BINDINGS_ARGS version=$VERSION"
+
+          echo "Final bindings: $BINDINGS_ARGS"
+          echo "Command: krane render --filenames ${{ inputs.krane-dir }} --bindings=$BINDINGS_ARGS"
           
+          krane render --filenames ${{ inputs.krane-dir }} --bindings=$BINDINGS_ARGS | \
+          krane deploy ${{ inputs.namespace }} ${{ inputs.cluster }} -f -
+
           echo "Deployment completed successfully"
