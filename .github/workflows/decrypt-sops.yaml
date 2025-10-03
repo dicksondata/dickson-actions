@@ -12,6 +12,13 @@ on:
         required: false
         type: string
         default: "."
+    secrets:
+      aws-access-key-id:
+        description: "AWS Access Key ID for SOPS KMS decryption"
+        required: true
+      aws-secret-access-key:
+        description: "AWS Secret Access Key for SOPS KMS decryption"
+        required: true
 
 jobs:
   decrypt:
