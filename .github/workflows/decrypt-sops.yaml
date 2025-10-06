@@ -1,0 +1,80 @@
+name: Decrypt SOPS
+
+on:
+  workflow_call:
+    inputs:
+      files:
+        description: "Space-separated list of SOPS encrypted files to decrypt"
+        required: true
+        type: string
+      output-dir:
+        description: "Output directory for decrypted files"
+        required: false
+        type: string
+        default: "."
+    secrets:
+      aws-access-key-id:
+        description: "AWS Access Key ID for SOPS KMS decryption"
+        required: true
+      aws-secret-access-key:
+        description: "AWS Secret Access Key for SOPS KMS decryption"
+        required: true
+
+jobs:
+  decrypt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install SOPS
+        run: |
+          curl -LO https://github.com/mozilla/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64
+          sudo mv sops-v3.10.2.linux.amd64 /usr/local/bin/sops
+          sudo chmod +x /usr/local/bin/sops
+
+      - name: Configure AWS credentials for SOPS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.aws-access-key-id }}
+          aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+          aws-region: us-east-1
+
+      - name: Decrypt SOPS files
+        run: |
+          echo "Decrypting SOPS files..."
+          DECRYPTED_FILES=""
+          
+          for file in ${{ inputs.files }}; do
+            if [ -f "$file" ]; then
+              echo "Decrypting: $file"
+              
+              # Generate output filename by removing .enc and adding .decrypted
+              output_file=$(echo "$file" | sed 's/\.enc\.yaml$/.decrypted.yaml/')
+              
+              # Extract just the filename for the output directory
+              output_filename=$(basename "$output_file")
+              output_path="${{ inputs.output-dir }}/$output_filename"
+              
+              # Decrypt the file
+              sops --decrypt "$file" > "$output_path"
+              
+              echo "Decrypted to: $output_path"
+              DECRYPTED_FILES="$DECRYPTED_FILES $output_filename"
+            else
+              echo "Error: File not found: $file"
+              exit 1
+            fi
+          done
+          
+          # Save the list of decrypted files for reference
+          echo "DECRYPTED_FILES=$DECRYPTED_FILES" >> $GITHUB_ENV
+          echo "Successfully decrypted files: $DECRYPTED_FILES"
+
+      - name: Upload decrypted files as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: decrypted-secrets
+          path: |
+            ${{ inputs.output-dir }}/*.decrypted.yaml
+          retention-days: 1
